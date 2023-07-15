@@ -1,48 +1,61 @@
-import { ComponentMetadata } from '@/components/types'
+import {
+  defineComponentMetadata,
+  defineOptionsMetadata,
+  OptionsOfMetadata,
+} from '@/components/define'
+import { ComponentEntry } from '@/components/types'
+import { getUID, matchUrlPattern, mountVueComponent } from '@/core/utils'
 import { videoUrls, watchlaterUrls } from '@/core/utils/urls'
 import { KeyBindingAction } from '../../utils/keymap/bindings'
+import { addVideoActionButton } from '@/components/video/video-actions'
 
-const entry = async () => {
-  const {
-    mountVueComponent, getUID, playerReady,
-  } = await import('@/core/utils')
-  if (!getUID()) {
+const options = defineOptionsMetadata({
+  showInWatchlaterPages: {
+    defaultValue: false,
+    displayName: '在稍后再看页面中仍然显示',
+  },
+})
+
+type Options = OptionsOfMetadata<typeof options>
+
+const entry: ComponentEntry<Options> = async ({ settings }) => {
+  if (watchlaterUrls.some(matchUrlPattern) && !settings.options.showInWatchlaterPages) {
     return
   }
-  await playerReady()
-  const favoriteButton = dq('.video-toolbar .ops .collect') as HTMLElement
-  if (!favoriteButton) {
+  if (!getUID()) {
     return
   }
   const OuterWatchlater = await import('./OuterWatchlater.vue')
   const vm: Vue & {
     aid: string
   } = mountVueComponent(OuterWatchlater)
-  favoriteButton.insertAdjacentElement('afterend', vm.$el)
-  const { videoChange } = await import('@/core/observer')
-  videoChange(() => {
-    vm.aid = unsafeWindow.aid
-  })
+  if (await addVideoActionButton(() => vm.$el)) {
+    const { videoChange } = await import('@/core/observer')
+    videoChange(({ aid }) => {
+      console.log('videoChange', unsafeWindow.aid, aid)
+      vm.aid = unsafeWindow.aid
+    })
+  }
 }
-export const component: ComponentMetadata = {
+export const component = defineComponentMetadata({
   name: 'outerWatchlater',
   displayName: '外置稍后再看',
   entry,
-  tags: [
-    componentsTags.video,
-  ],
+  tags: [componentsTags.video],
   description: {
-    'zh-CN': '将视频页面菜单里的 \`稍后再看\` 移到外面.',
+    'zh-CN':
+      '将视频页面菜单里的 `稍后再看` 移到外面. 请注意如果在稍后再看页面中仍然显示, 是不会实时同步右侧的播放列表的.',
   },
   urlInclude: videoUrls,
-  urlExclude: watchlaterUrls,
+  // urlExclude: watchlaterUrls,
+  options,
   reload: () => {
-    dqa('.ops .watchlater').forEach((it: HTMLElement) => {
-      it.style.display = 'inline-block'
+    dqa('.be-outer-watchlater').forEach((it: HTMLElement) => {
+      it.style.display = ''
     })
   },
   unload: () => {
-    dqa('.ops .watchlater').forEach((it: HTMLElement) => {
+    dqa('.be-outer-watchlater').forEach((it: HTMLElement) => {
       it.style.display = 'none'
     })
   },
@@ -54,7 +67,7 @@ export const component: ComponentMetadata = {
           displayName: '稍后再看',
           run: context => {
             const { clickElement } = context
-            return clickElement('.video-toolbar .ops .watchlater, .more-ops-list .ops-watch-later, .video-toolbar-module .see-later-box', context)
+            return clickElement('.be-outer-watchlater', context)
           },
         }
       })
@@ -63,4 +76,4 @@ export const component: ComponentMetadata = {
       })
     },
   },
-}
+})

@@ -1,6 +1,7 @@
 // 移除已观看: https://api.bilibili.com/x/v2/history/toview/del  viewed=true&csrf=csrf
 // 清空: https://api.bilibili.com/x/v2/history/toview/clear  csrf=csrf
 
+import { deleteValue, deleteValues } from '@/core/utils'
 import { logError } from '@/core/utils/log'
 
 export interface Rights {
@@ -88,6 +89,11 @@ export async function getWatchlaterList(): Promise<number[]>
 export async function getWatchlaterList(raw: true): Promise<RawWatchlaterItem[]>
 export async function getWatchlaterList(raw: false): Promise<number[]>
 export async function getWatchlaterList(raw = false): Promise<number[] | RawWatchlaterItem[]> {
+  const { getUID } = await import('@/core/utils')
+  if (!getUID()) {
+    console.warn('[稍后再看列表] 账号未登录')
+    return []
+  }
   const api = 'https://api.bilibili.com/x/v2/history/toview/web'
   const { getJsonWithCredentials } = await import('@/core/ajax')
   const response = await getJsonWithCredentials(api)
@@ -97,14 +103,13 @@ export async function getWatchlaterList(raw = false): Promise<number[] | RawWatc
   }
   if (!response.data.list) {
     // clear list
-    lodash.pullAll(watchlaterList, watchlaterList)
+    deleteValues(watchlaterList, () => true)
     return []
   }
   const rawList: RawWatchlaterItem[] = response.data.list
   // update list
+  deleteValues(watchlaterList, it => !rawList.find(w => w.aid === it))
   const newItems = rawList.filter(it => !watchlaterList.find(w => w === it.aid))
-  const removedItems = watchlaterList.filter(it => !rawList.find(w => w.aid === it))
-  lodash.pullAll(watchlaterList, removedItems)
   watchlaterList.push(...newItems.map(it => it.aid))
   if (raw) {
     return rawList
@@ -125,7 +130,9 @@ export const toggleWatchlater = async (aid: string | number, add?: boolean | und
   if (add === undefined) {
     add = !watchlaterList.includes(id)
   }
-  const api = add ? 'https://api.bilibili.com/x/v2/history/toview/add' : 'https://api.bilibili.com/x/v2/history/toview/del'
+  const api = add
+    ? 'https://api.bilibili.com/x/v2/history/toview/add'
+    : 'https://api.bilibili.com/x/v2/history/toview/del'
   const { getCsrf } = await import('@/core/utils')
   const csrf = getCsrf()
   const { postTextWithCredentials } = await import('@/core/ajax')
@@ -141,7 +148,7 @@ export const toggleWatchlater = async (aid: string | number, add?: boolean | und
   if (add) {
     watchlaterList.push(id)
   } else {
-    lodash.pull(watchlaterList, id)
+    deleteValue(watchlaterList, it => it === id)
   }
 }
 

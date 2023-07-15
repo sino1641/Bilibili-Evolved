@@ -12,6 +12,7 @@
   ul,
   ol {
     padding-left: 16px;
+    margin: 0;
     li {
       line-height: 1.75;
     }
@@ -19,8 +20,18 @@
   p {
     margin: 0;
   }
+  details {
+    line-height: 1.75;
+    summary {
+      cursor: pointer;
+      margin: 4px 0;
+    }
+  }
   > p {
     line-height: 1.75;
+  }
+  p + p {
+    margin-top: 8px;
   }
   pre {
     white-space: pre-wrap;

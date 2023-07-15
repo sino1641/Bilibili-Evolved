@@ -1,9 +1,7 @@
 <template>
   <div class="fresh-home-feeds">
     <div class="fresh-home-header">
-      <div class="fresh-home-header-title">
-        动态
-      </div>
+      <div class="fresh-home-header-title">动态</div>
       <div class="fresh-home-header-center-area">
         <div class="fresh-home-header-tabs">
           <div class="default-tabs">
@@ -22,17 +20,13 @@
         </div>
       </div>
       <div class="fresh-home-header-pagination">
-        <a
-          href="https://www.bilibili.com/video/online.html"
-          target="_blank"
-          title="在线列表"
-        >
+        <a href="https://www.bilibili.com/video/online.html" target="_blank" title="在线列表">
           <VButton icon>
             <VIcon icon="mdi-account-group-outline" :size="19" />
           </VButton>
         </a>
         <VButton icon title="刷新" @click="reload">
-          <VIcon icon="mdi-reload" :size="18" />
+          <VIcon icon="mdi-refresh" :size="18" />
         </VButton>
         <VButton icon title="上一页" @click="$refs.videoList.offsetPage(-1)">
           <VIcon icon="left-arrow" :size="20" />
@@ -53,17 +47,14 @@
       </div>
     </div>
     <div class="fresh-home-feeds-content">
-      <VideoList
-        ref="videoList"
-        :videos="videos"
-        :loading="loading"
-      />
+      <VideoList ref="videoList" :videos="videos" :loading="loading" />
     </div>
   </div>
 </template>
 <script lang="ts">
 import { getVideoFeeds } from '@/components/feeds/api'
 import { VideoCard } from '@/components/feeds/video-card'
+import { ArrayContent } from '@/core/common-types'
 import { VButton, VIcon } from '@/ui'
 import VideoList from '../../VideoList.vue'
 
@@ -82,7 +73,6 @@ const tabs = [
     href: 'https://t.bilibili.com/?tab=512',
   },
 ]
-type ArrayContent<T> = T extends Array<infer R> ? R : T
 type TabType = ArrayContent<typeof tabs>
 export default Vue.extend({
   components: {
@@ -113,13 +103,15 @@ export default Vue.extend({
     async reload() {
       this.loading = true
       this.videos = []
-      this.videos = await this.selectedTab.api().finally(() => { this.loading = false })
+      this.videos = await this.selectedTab.api().finally(() => {
+        this.loading = false
+      })
     },
   },
 })
 </script>
 <style lang="scss">
-@import "common";
+@import 'common';
 
 .fresh-home-feeds {
   @include v-stretch();

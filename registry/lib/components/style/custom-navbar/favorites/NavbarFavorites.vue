@@ -39,21 +39,21 @@
             target="_blank"
             :href="'https://www.bilibili.com/video/' + card.bvid"
             :title="card.title"
-          >{{ card.title }}</a>
+            >{{ card.title }}</a
+          >
           <a
+            v-if="card.upID"
             class="up"
             target="_blank"
             :href="'https://space.bilibili.com/' + card.upID"
             :title="card.upName"
           >
-            <DpiImage
-              placeholder-image
-              class="face"
-              :src="card.upFaceUrl"
-              :size="20"
-            ></DpiImage>
+            <DpiImage placeholder-image class="face" :src="card.upFaceUrl" :size="20"></DpiImage>
             <div class="name">{{ card.upName }}</div>
           </a>
+          <div v-else class="description">
+            {{ card.description }}
+          </div>
         </div>
         <ScrollTrigger
           v-if="canLoadMore"
@@ -65,15 +65,7 @@
   </div>
 </template>
 <script lang="ts">
-import {
-  VLoading,
-  VEmpty,
-  VIcon,
-  VButton,
-  TextBox,
-  DpiImage,
-  ScrollTrigger,
-} from '@/ui'
+import { VLoading, VEmpty, VIcon, VButton, TextBox, DpiImage, ScrollTrigger } from '@/ui'
 import { formatDate, formatDuration } from '@/core/utils/formatters'
 import { getUID } from '@/core/utils'
 import { getJsonWithCredentials } from '@/core/ajax'
@@ -83,6 +75,11 @@ import { getComponentSettings } from '@/core/settings'
 import { notSelectedFolder } from './favorites-folder'
 import FavoritesFolderSelect from './FavoritesFolderSelect.vue'
 import { popperMixin } from '../mixins'
+
+/*
+新版收藏夹 API
+https://api.bilibili.com/x/v3/fav/resource/list?media_id=media_id&pn=1&ps=20&keyword=keyword&order=mtime&type=0&tid=0&platform=web
+*/
 
 const navbarOptions = getComponentSettings('customNavbar').options
 interface FavoritesItemInfo extends VideoCard {
@@ -119,8 +116,12 @@ async function searchAllList() {
   }
   try {
     this.loading = true
-    const jsonCurrent = await getJsonWithCredentials(`https://api.bilibili.com/x/v3/fav/resource/list?media_id=${this.folder.id}&pn=${this.searchPage}&ps=${MaxPageSize}&keyword=${this.search}&order=mtime&type=0&tid=0`)
-    const jsonAll = await getJsonWithCredentials(`https://api.bilibili.com/x/v3/fav/resource/list?media_id=${this.folder.id}&pn=${this.searchPage}&ps=${MaxPageSize}&keyword=${this.search}&order=mtime&type=1&tid=0`)
+    const jsonCurrent = await getJsonWithCredentials(
+      `https://api.bilibili.com/x/v3/fav/resource/list?media_id=${this.folder.id}&pn=${this.searchPage}&ps=${MaxPageSize}&keyword=${this.search}&order=mtime&type=0&tid=0&platform=web`,
+    )
+    const jsonAll = await getJsonWithCredentials(
+      `https://api.bilibili.com/x/v3/fav/resource/list?media_id=${this.folder.id}&pn=${this.searchPage}&ps=${MaxPageSize}&keyword=${this.search}&order=mtime&type=1&tid=0&platform=web`,
+    )
     if (jsonCurrent.code !== 0 && jsonAll.code !== 0) {
       return
     }
@@ -210,14 +211,13 @@ export default Vue.extend({
       this.hasMoreSearchPage = true
       this.searchPage = 1
       this.filteredCards = (this.cards as FavoritesItemInfo[]).filter(
-        it => it.title.toLowerCase().includes(keyword)
-          || it.upName.toLowerCase().includes(keyword),
+        it => it.title.toLowerCase().includes(keyword) || it.upName.toLowerCase().includes(keyword),
       )
     },
   },
   methods: {
     async getCards() {
-      const url = `https://api.bilibili.com/medialist/gateway/base/spaceDetail?media_id=${this.folder.id}&pn=${this.page}&ps=${MaxPageSize}`
+      const url = `https://api.bilibili.com/x/v3/fav/resource/list?media_id=${this.folder.id}&pn=${this.page}&ps=${MaxPageSize}&keyword=&order=mtime&type=0&tid=0&platform=web`
       const json = await getJsonWithCredentials(url)
       if (json.code !== 0) {
         throw new Error(`加载收藏夹内容失败: ${json.message}`)
@@ -226,9 +226,7 @@ export default Vue.extend({
         // 超过最后一页后返回空数组
         return []
       }
-      return json.data.medias
-        .filter(favoriteItemFilter)
-        .map(favoriteItemMapper)
+      return json.data.medias.filter(favoriteItemFilter).map(favoriteItemMapper)
     },
     async changeList() {
       if (this.folder.id === 0) {
@@ -255,7 +253,7 @@ export default Vue.extend({
         this.page++
         const cards = await this.getCards()
         this.cards.push(...cards)
-        this.hasMorePage = cards.length === 0 || this.cards.length < this.folder.count
+        this.hasMorePage = cards.length !== 0 || this.cards.length < this.folder.count
       } catch (error) {
         logError(error)
       }
@@ -272,8 +270,8 @@ export default Vue.extend({
 })
 </script>
 <style lang="scss">
-@import "common";
-@import "../popup";
+@import 'common';
+@import '../popup';
 
 .custom-navbar .favorites-list {
   width: 380px;
@@ -411,7 +409,7 @@ export default Vue.extend({
         .title {
           grid-area: title;
           font-size: 13px;
-          font-weight: bold;
+          @include semi-bold();
           @include max-line(2);
           -webkit-box-align: start;
           margin: 0;
@@ -453,6 +451,10 @@ export default Vue.extend({
           &:hover .name {
             color: var(--theme-color);
           }
+        }
+        .description {
+          @include single-line();
+          margin: 4px 10px;
         }
       }
     }

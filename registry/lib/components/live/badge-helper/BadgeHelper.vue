@@ -11,7 +11,7 @@
           v-for="medal of medalList"
           :key="medal.id"
           :data-id="medal.id"
-          :class="{ active: medal.isActive, gray: !medal.isLighted }"
+          :class="{ active: medal.isActive, gray: grayEffect && !medal.isLighted }"
           :title="medal.upName"
           @click="toggleBadge(medal, medalList)"
         >
@@ -22,11 +22,7 @@
         </li>
       </ul>
     </VPopup>
-    <DefaultWidget
-      ref="medalButton"
-      icon="mdi-medal"
-      @click="medalOpen = !medalOpen"
-    >
+    <DefaultWidget ref="medalButton" icon="mdi-medal" @click="medalOpen = !medalOpen">
       <span>更换勋章</span>
     </DefaultWidget>
 
@@ -48,26 +44,17 @@
         </li>
       </ul>
     </VPopup>
-    <DefaultWidget
-      ref="titleButton"
-      icon="mdi-script-outline"
-      @click="titleOpen = !titleOpen"
-    >
+    <DefaultWidget ref="titleButton" icon="mdi-script-outline" @click="titleOpen = !titleOpen">
       <span>更换头衔</span>
     </DefaultWidget>
   </div>
 </template>
 
 <script lang="ts">
-import { getComponentSettings } from '@/core/settings'
+import { addComponentListener, getComponentSettings } from '@/core/settings'
 import { descendingSort } from '@/core/utils/sort'
-import {
-  DefaultWidget,
-  VPopup,
-} from '@/ui'
-import {
-  Medal, Title, Badge, getMedalList, getTitleList,
-} from './badge'
+import { DefaultWidget, VPopup } from '@/ui'
+import { Medal, Title, Badge, getMedalList, getTitleList } from './badge'
 
 const { options } = getComponentSettings('badgeHelper')
 export default Vue.extend({
@@ -81,9 +68,17 @@ export default Vue.extend({
       titleList: [],
       medalOpen: false,
       titleOpen: false,
+      grayEffect: true,
     }
   },
   async mounted() {
+    addComponentListener(
+      'badgeHelper.grayEffect',
+      (enable: boolean) => {
+        this.grayEffect = enable
+      },
+      true,
+    )
     const init = async () => {
       const medal = this.loadMedalList()
       await Title.getImageMap()
@@ -95,8 +90,8 @@ export default Vue.extend({
   },
   methods: {
     updateColumnsCount() {
-      const maxColumnCount = 6
-      const columnLength = 12
+      const maxColumnCount = 15
+      const columnLength = 18
       const element = this.$el as HTMLElement
       const medalColumns = Math.min(Math.ceil(this.medalList.length / columnLength), maxColumnCount)
       element.style.setProperty('--medal-columns', medalColumns.toString())
@@ -138,7 +133,7 @@ export default Vue.extend({
 </script>
 
 <style lang="scss">
-@import "common";
+@import 'common';
 .badge-popup {
   top: 50%;
   left: calc(100% + 8px);

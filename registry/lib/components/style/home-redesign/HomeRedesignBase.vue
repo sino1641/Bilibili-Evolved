@@ -4,16 +4,21 @@
   </div>
 </template>
 <script lang="ts">
-export default Vue.extend({
-
-})
+export default Vue.extend({})
 </script>
 <style lang="scss">
-@import "common";
+@import 'common';
 
+html {
+  scroll-behavior: smooth;
+  min-height: 100vh;
+}
 body {
   @include v-stretch();
   min-height: 100vh;
+}
+#i_cecream {
+  width: 100%;
 }
 .home-redesign-base {
   --home-base-color: #fff;
@@ -40,8 +45,5 @@ body {
   body.home-redesign-off & {
     display: none;
   }
-}
-html {
-  scroll-behavior: smooth;
 }
 </style>

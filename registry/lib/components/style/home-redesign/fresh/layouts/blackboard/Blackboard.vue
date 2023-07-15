@@ -1,10 +1,12 @@
 <template>
-  <div class="fresh-home-blackboard">
+  <div class="fresh-home-blackboard" @mouseenter="destroyTimer" @mouseleave="createTimer">
     <div class="fresh-home-header">
-      <div class="fresh-home-header-title">
-        活动
-      </div>
-      <a class="fresh-home-header-icon-button rotate" href="https://www.bilibili.com/blackboard/x/act_list/" target="_blank">
+      <div class="fresh-home-header-title">活动</div>
+      <a
+        class="fresh-home-header-icon-button rotate"
+        href="https://www.bilibili.com/blackboard/x/act_list/"
+        target="_blank"
+      >
         <VButton round>
           <VIcon icon="mdi-dots-horizontal" :size="20"></VIcon>
           更多
@@ -43,22 +45,14 @@
       </a>
     </div>
     <div class="fresh-home-blackboard-jump-dots">
-      <label
-        v-for="(b, i) of blackboards"
-        :key="i"
-        :for="'blackboard' + i"
-      >
+      <label v-for="(b, i) of blackboards" :key="i" :for="'blackboard' + i">
         <div class="fresh-home-blackboard-jump-dot"></div>
       </label>
     </div>
   </div>
 </template>
 <script lang="ts">
-import {
-  VButton,
-  VIcon,
-  DpiImage,
-} from '@/ui'
+import { VButton, VIcon, DpiImage } from '@/ui'
 import { getBlackboards } from './api'
 
 export default Vue.extend({
@@ -83,34 +77,43 @@ export default Vue.extend({
     this.blackboards = blackboards.filter(b => !b.isAd)
   },
   mounted() {
-    const radioClass = 'fresh-home-blackboard-radio'
-    this.timer = window.setInterval(() => {
-      if (!document.hasFocus() || this.$el.matches(':hover')) {
-        return
-      }
-      const currentIndex = parseInt(
-        dq(`.${radioClass}:checked`).getAttribute('data-index'),
-      )
-      let targetIndex: number
-      if (currentIndex === this.blackboards.length - 1) {
-        targetIndex = 0
-      } else {
-        targetIndex = currentIndex + 1
-      }
-      (dq(
-        `.${radioClass}[data-index='${targetIndex}']`,
-      ) as HTMLInputElement).checked = true
-    }, 5000)
+    this.createTimer()
   },
   beforeDestroy() {
-    if (this.timer) {
+    this.destroyTimer()
+  },
+  methods: {
+    createTimer() {
+      if (this.timer) {
+        return
+      }
+      const radioClass = 'fresh-home-blackboard-radio'
+      this.timer = window.setInterval(() => {
+        if (!document.hasFocus() || this.$el.matches(':hover')) {
+          return
+        }
+        const currentIndex = parseInt(dq(`.${radioClass}:checked`).getAttribute('data-index'))
+        let targetIndex: number
+        if (currentIndex === this.blackboards.length - 1) {
+          targetIndex = 0
+        } else {
+          targetIndex = currentIndex + 1
+        }
+        ;(dq(`.${radioClass}[data-index='${targetIndex}']`) as HTMLInputElement).checked = true
+      }, 5000)
+    },
+    destroyTimer() {
+      if (!this.timer) {
+        return
+      }
       window.clearInterval(this.timer)
-    }
+      this.timer = 0
+    },
   },
 })
 </script>
 <style lang="scss">
-@import "common";
+@import 'common';
 
 $max-card-count: 16;
 .fresh-home {
@@ -118,7 +121,7 @@ $max-card-count: 16;
     position: relative;
     &,
     & * {
-      transition: .2s ease-out;
+      transition: 0.2s ease-out;
     }
     &-cards {
       display: flex;
@@ -181,8 +184,8 @@ $max-card-count: 16;
           width: 40px;
         }
         &:checked:nth-of-type(#{$i}) ~ .fresh-home-blackboard-cards .fresh-home-blackboard-card {
-          transform:
-            translateX(calc(-1 * #{$i - 1} * var(--blackboard-width-without-border))) scale(0.9);
+          transform: translateX(calc(-1 * #{$i - 1} * var(--blackboard-width-without-border)))
+            scale(0.9);
           &:nth-of-type(#{$i}) {
             transform: translateX(calc(-1 * #{$i - 1} * var(--blackboard-width-without-border)));
             img {

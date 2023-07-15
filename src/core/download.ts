@@ -3,6 +3,7 @@ import { DownloadPackageEmitMode } from './download-mode'
 import { JSZipLibrary } from './runtime-library'
 import { getGeneralSettings } from './settings'
 import { formatFilename } from './utils/formatters'
+import { useScopedConsole } from './utils/log'
 
 /** 表示`DownloadPackage`中的一个文件 */
 export interface PackageEntry {
@@ -60,9 +61,8 @@ export class DownloadPackage {
     if (!filename || this.entries.length === 1) {
       filename = this.entries[0].name
     }
-    const isIndividualMode = (
+    const isIndividualMode =
       getGeneralSettings().downloadPackageEmitMode === DownloadPackageEmitMode.Individual
-    )
     if (isIndividualMode && this.entries.length > 1) {
       await Promise.all(this.entries.map(e => DownloadPackage.single(e.name, e.data, e.options)))
       return
@@ -74,6 +74,7 @@ export class DownloadPackage {
     DownloadPackage.download(filename, blob)
   }
   private static download(filename: string, blob: Blob) {
+    const console = useScopedConsole('文件下载')
     const a = document.createElement('a')
     const url = URL.createObjectURL(blob)
     if (DownloadPackage.lastPackageUrl) {
@@ -83,8 +84,16 @@ export class DownloadPackage {
     const finalFilename = formatFilename(filename)
     a.setAttribute('href', url)
     a.setAttribute('download', finalFilename)
-    console.log('[Download file]', finalFilename)
+    console.log(finalFilename)
     document.body.appendChild(a)
+    // 阻止 spm id 的事件 (#2247)
+    a.addEventListener(
+      'click',
+      e => {
+        e.stopPropagation()
+      },
+      { capture: true },
+    )
     a.click()
     a.remove()
   }

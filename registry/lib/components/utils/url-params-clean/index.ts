@@ -1,14 +1,15 @@
 import { registerAndGetData } from '@/plugins/data'
-import { ComponentMetadata } from '@/components/types'
-import { isNotHtml } from '@/core/utils'
+import { defineComponentMetadata } from '@/components/define'
+import { isIframe, isNotHtml, matchPattern } from '@/core/utils'
+import { useScopedConsole } from '@/core/utils/log'
 
+const displayName = '网址参数清理'
+const console = useScopedConsole(displayName)
 const entry = async () => {
-  if (isNotHtml()) {
+  if (isNotHtml() || isIframe()) {
     return
   }
-  const builtInNoClean = [
-    'videocard_series',
-  ]
+  const builtInNoClean = ['videocard_series']
   const [noClean] = registerAndGetData('urlParamsClean.noClean', builtInNoClean)
   const builtInBlockParams = [
     'spm_id_from',
@@ -21,6 +22,7 @@ const entry = async () => {
     'share_plat',
     'share_tag',
     'share_session_id',
+    'share_from',
     'bbid',
     'ts',
     'timestamp',
@@ -43,6 +45,18 @@ const entry = async () => {
     'bsource',
     'spm',
     'hotRank',
+    '-Arouter',
+    'vd_source',
+    'is_story_h5',
+    'buvid',
+    'plat_id',
+    'goFrom',
+    'jumpLinkType',
+    'hasBack',
+    'noTitleBar',
+    'msource',
+    'live_from',
+    'plat_id',
   ]
   const [blockParams] = registerAndGetData('urlParamsClean.params', builtInBlockParams)
   const builtInSiteSpecifiedParams = [
@@ -58,53 +72,99 @@ const entry = async () => {
       match: /\/\/www\.bilibili\.com\/bangumi\//,
       param: 'theme',
     },
+    {
+      match: /\/\/www\.bilibili\.com\/video\//,
+      param: 'mid',
+    },
+    {
+      match: /\/\/www\.bilibili\.com\/video\//,
+      param: 'up_id',
+    },
+    {
+      match: /\/\/mall\.bilibili\.com\//,
+      param: 'noReffer',
+    },
   ]
-  const [siteSpecifiedParams] = registerAndGetData('urlParamsClean.siteSpecifiedParams', builtInSiteSpecifiedParams)
+  const [siteSpecifiedParams] = registerAndGetData(
+    'urlParamsClean.siteSpecifiedParams',
+    builtInSiteSpecifiedParams,
+  )
+  const builtInTailingSlash: { match: string | RegExp }[] = []
+  const [tailingSlash] = registerAndGetData('urlParamsClean.tailingSlash', builtInTailingSlash)
 
-  const clean = () => {
-    const urlParams = window.location.search.substring(1).split('&')
+  const getCleanUrl = (originalUrl: string) => {
+    const url = new URL(originalUrl, location.origin)
+    const urlParams = [...new URLSearchParams(url.search).entries()].map(
+      ([key, value]) => `${key}=${value}`,
+    )
     if (urlParams.some(param => noClean.some(it => param.includes(it)))) {
-      return
+      return originalUrl
     }
     const filteredParams = urlParams.filter(p => {
       if (blockParams.some(b => p.startsWith(`${b}=`))) {
         return false
       }
-      if (siteSpecifiedParams.some(({ match, param }) => (
-        document.URL.match(match) && p.startsWith(`${param}=`)
-      ))) {
+      if (
+        siteSpecifiedParams.some(
+          ({ match, param }) => document.URL.match(match) && p.startsWith(`${param}=`),
+        )
+      ) {
         return false
       }
       return true
     })
     const filteredParamsString = filteredParams.join('&')
-    const url = document.URL.replace(window.location.search, '')
-    const query = filteredParamsString ? (`?${filteredParamsString}`) : ''
-    const newUrl = url + query
-    if (newUrl !== document.URL) {
-      console.log('[URL params clean]', document.URL, newUrl)
-      window.history.replaceState({}, document.title, newUrl)
+    tailingSlash.forEach(({ match }) => {
+      const pathName = url.pathname
+      if (matchPattern(pathName, match) && pathName.endsWith('/')) {
+        url.pathname = pathName.slice(0, pathName.length - 1)
+      }
+    })
+    const query = filteredParamsString ? `?${filteredParamsString}` : ''
+    url.search = query
+    return url.toString()
+  }
+
+  const createHistoryHook = (
+    original: (data: unknown, unused: string, url: string, ...restArgs: unknown[]) => void,
+  ) => {
+    return function historyHook(
+      data: unknown,
+      unused: string,
+      url: string,
+      ...restArgs: unknown[]
+    ) {
+      const newUrl = getCleanUrl(url)
+      if (newUrl !== url) {
+        console.log('History API 拦截', url, newUrl)
+        return original.call(this, data, unused, newUrl, ...restArgs)
+      }
+      return original.call(this, data, unused, url, ...restArgs)
     }
   }
+  const originalPushState = unsafeWindow.history.pushState
+  unsafeWindow.history.pushState = createHistoryHook(originalPushState)
+  const originalReplaceState = unsafeWindow.history.replaceState
+  unsafeWindow.history.replaceState = createHistoryHook(originalReplaceState)
+
+  const clean = () => {
+    const newUrl = getCleanUrl(document.URL)
+    if (newUrl !== document.URL) {
+      console.log('直接清理', document.URL, newUrl)
+      window.history.replaceState(history.state, '', newUrl)
+    }
+  }
+
   const { fullyLoaded } = await import('@/core/life-cycle')
   const { urlChange } = await import('@/core/observer')
   fullyLoaded(() => {
-    if (document.contentType === 'text/html') {
-      urlChange(() => clean())
-    }
+    urlChange(() => clean())
   })
 }
-export const component: ComponentMetadata = {
+export const component = defineComponentMetadata({
   name: 'urlParamsClean',
-  displayName: '网址参数清理',
+  displayName,
   entry,
-  description: {
-    'zh-CN': '自动删除网址中的多余跟踪参数.',
-  },
-  tags: [
-    componentsTags.utils,
-  ],
-  urlExclude: [
-    /game\.bilibili\.com\/fgo/,
-  ],
-}
+  tags: [componentsTags.utils],
+  urlExclude: [/game\.bilibili\.com\/fgo/, /live\.bilibili\.com\/p\/html\/live-app-hotrank\//],
+})
