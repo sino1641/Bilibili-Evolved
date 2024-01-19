@@ -28,3 +28,23 @@ body.disable-up-danmaku-style {
     }
   }
 }
+body.disable-vip-danmaku-style {
+  .bili-dm-vip {
+    display: contents !important;
+    text-shadow: inherit !important;
+  }
+  .bili-dm:not([style*='--textShadow']) {
+    --textShadow: var(--danmaku-text-shadow);
+  }
+}
+body.disable-upSlogan-danmaku-style {
+  .bili-upslogan {
+    padding: 0 !important;
+    opacity: var(--opacity) !important;
+    font-weight: var(--fontWeight) !important;
+    background-color: transparent !important;
+    img {
+      display: none !important;
+    }
+  }
+}
